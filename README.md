@@ -1,46 +1,33 @@
-# Sistema de Automação para WordPress (Categorias, Páginas, Templates, Plugins e Temas)
+# Sistema de Automação WordPress **sem plugin customizado**
 
-Este projeto entrega uma base prática para você controlar um site WordPress via API com as operações:
+Sim — dá para rodar sem copiar `wordpress-connector.php` para o servidor.
+
+A estratégia é usar **somente a REST API nativa do WordPress** + autenticação com **Application Passwords**.
+
+## O que este modelo cobre
 
 - Criar categorias.
 - Criar páginas.
 - Salvar conteúdo reutilizável para usar em outros sites.
-- Instalar plugins da biblioteca oficial do WordPress.
-- Instalar temas da biblioteca oficial do WordPress.
+- Instalar plugins da biblioteca oficial.
+- Instalar temas da biblioteca oficial.
 
-## Visão de arquitetura (senior)
+## Pré-requisitos no WordPress
 
-A abordagem mais segura e escalável é separar em **2 camadas**:
+1. WordPress com REST API ativa.
+2. Usuário administrador.
+3. Application Password criada para esse usuário.
+4. HTTPS habilitado.
 
-1. **Plugin WordPress (este repositório)**
-   - Expõe endpoints REST customizados.
-   - Executa as ações no WordPress local com as permissões corretas.
-2. **Seu sistema externo (painel/API própria)**
-   - Faz chamadas HTTP autenticadas para cada site WordPress conectado.
-   - Centraliza templates reutilizáveis por cliente/projeto.
+> Observação: em alguns hosts/versões antigas, endpoints de plugins/temas podem estar restritos. Nesse caso, mantenha fallback via WP-CLI/SSH.
 
-## Por que plugin + API customizada?
+## Endpoints nativos usados
 
-- A API nativa do WordPress cria categorias e páginas com facilidade.
-- Instalar plugins/temas remotamente exige permissões administrativas e não é recomendado expor sem controle.
-- Com plugin customizado, você define regras, logs e validações.
-
-## Instalação
-
-1. Copie `wordpress-connector.php` para a pasta `wp-content/plugins/wp-connector/wp-connector.php`.
-2. Ative o plugin no painel do WordPress.
-3. Gere autenticação para acesso remoto (recomendado: **Application Passwords** do WordPress).
-4. Chame os endpoints abaixo a partir do seu sistema.
-
-## Endpoints REST
-
-Base: `/wp-json/wp-connector/v1`
+Base: `https://seu-site.com/wp-json`
 
 ### 1) Criar categoria
 
-`POST /categories`
-
-Body JSON:
+`POST /wp/v2/categories`
 
 ```json
 {
@@ -51,9 +38,7 @@ Body JSON:
 
 ### 2) Criar página
 
-`POST /pages`
-
-Body JSON:
+`POST /wp/v2/pages`
 
 ```json
 {
@@ -63,60 +48,65 @@ Body JSON:
 }
 ```
 
-### 3) Salvar conteúdo reutilizável (template)
+### 3) Salvar conteúdo reutilizável
 
-`POST /templates`
+Use o post type nativo `wp_block` (blocos reutilizáveis):
 
-Body JSON:
-
-```json
-{
-  "title": "Bloco Hero SaaS",
-  "content": "<section>...</section>",
-  "meta": {
-    "segmento": "tecnologia",
-    "idioma": "pt-BR"
-  }
-}
-```
-
-### 4) Listar templates
-
-`GET /templates`
-
-### 5) Instalar plugin do diretório oficial
-
-`POST /plugins/install`
-
-Body JSON:
+`POST /wp/v2/blocks`
 
 ```json
 {
-  "slug": "wordpress-seo"
+  "title": "Hero SaaS",
+  "content": "<!-- wp:paragraph --><p>Meu bloco reutilizável</p><!-- /wp:paragraph -->",
+  "status": "publish"
 }
 ```
 
-### 6) Instalar tema do diretório oficial
+Para listar:
 
-`POST /themes/install`
+`GET /wp/v2/blocks`
 
-Body JSON:
+### 4) Instalar plugin do diretório oficial
+
+`POST /wp/v2/plugins`
 
 ```json
 {
-  "slug": "astra"
+  "slug": "wordpress-seo",
+  "status": "inactive"
 }
 ```
 
-## Observações importantes
+### 5) Instalar tema do diretório oficial
 
-- Essas rotas exigem usuário com capacidade administrativa (`manage_options`).
-- Em produção, proteja com HTTPS, controle de IP e auditoria.
-- Você pode replicar templates em outros sites consumindo `/templates` de um site origem e enviando via `POST /pages` no destino.
+`POST /wp/v2/themes`
 
-## Próximos passos sugeridos
+```json
+{
+  "stylesheet": "astra"
+}
+```
 
-- Adicionar endpoint para **atualizar/remover** templates.
-- Adicionar endpoint para **instalar versão específica** de plugin/tema.
-- Implementar logs de auditoria em tabela customizada.
-- Criar um painel web (React/Next.js) para orquestrar múltiplos sites.
+## Uso no seu sistema
+
+Este repositório inclui `wp-native-connector.js`, um cliente Node.js que encapsula as chamadas acima.
+
+### Exemplo rápido
+
+```bash
+node wp-native-connector.js
+```
+
+Edite as variáveis no arquivo para seu ambiente (`baseUrl`, `username`, `appPassword`).
+
+## Arquitetura recomendada (senior)
+
+- **Camada de orquestração (seu sistema)**: controla vários sites, templates e automações.
+- **Camada de execução**: chama APIs nativas de cada WordPress com credenciais próprias.
+- **Logs/auditoria**: registrar request/response e `site_id`, `actor`, `timestamp`.
+
+## Quando ainda vale plugin customizado?
+
+- Regras de negócio muito específicas.
+- Necessidade de endpoints próprios com validações complexas.
+- Compatibilidade com ambiente onde endpoints nativos de plugin/tema estejam bloqueados.

@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sites Site[]
+}
+
+model Site {
+  id                  String   @id @default(cuid())
+  ownerId             String
+  name                String
+  baseUrl             String
+  wpUsername          String
+  wpAppPasswordCipher String
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  owner      User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  pages      Page[]
+  categories Category[]
+  jobs       Job[]
+
+  @@index([ownerId])
+}
+
+model ContentTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String?
+  language    String?  @default("pt-BR")
+  title       String
+  htmlContent String
+  tags        String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  pages Page[]
+}
+
+model Category {
+  id         String   @id @default(cuid())
+  siteId     String
+  externalId Int
+  name       String
+  slug       String?
+  createdAt  DateTime @default(now())
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, externalId])
+  @@index([siteId])
+}
+
+model Page {
+  id               String   @id @default(cuid())
+  siteId           String
+  templateId       String?
+  externalId       Int
+  title            String
+  slug             String?
+  status           PageStatus
+  lastPublishedAt  DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  site     Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  template ContentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@unique([siteId, externalId])
+  @@index([siteId])
+  @@index([templateId])
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  siteId      String
+  type        JobType
+  status      JobStatus @default(PENDING)
+  payloadJson Json
+  resultJson  Json?
+  error       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@index([type, status])
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  OPERATOR
+}
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum JobType {
+  INSTALL_PLUGIN
+  INSTALL_THEME
+  PUBLISH_TEMPLATE
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}

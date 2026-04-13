@@ -1,27 +1,40 @@
 # SaaS Multi-Site WordPress
 
-Este repositório contém a base de arquitetura para um SaaS que conecta múltiplos sites WordPress e permite:
+Este repositório contém a base para um SaaS que conecta múltiplos sites WordPress e oferece:
 
-- Criar categorias
-- Criar páginas
-- Salvar conteúdo reutilizável (template)
-- Instalar plugins da biblioteca do WordPress
-- Instalar temas da biblioteca do WordPress
+- Criação de categorias
+- Criação de páginas
+- Biblioteca de conteúdo reutilizável
+- Instalação de plugins da biblioteca WordPress
+- Instalação de temas da biblioteca WordPress
 
-> **Status atual:** blueprint + modelo de dados Prisma.
-> Ainda não existem aplicações `frontend` e `backend` completas neste repositório.
+> **Importante:** neste momento, o repositório possui **documentação + schema Prisma**.
+> Ainda não existe aplicação `frontend`/`backend` completa pronta para produção.
 
 ---
 
-## 1) Pré-requisitos
+## Guia completo de instalação (passo a passo)
 
-Instale no seu ambiente:
+## Passo 0 — Confirmar que você está na pasta do projeto
 
-- Node.js 20+
-- npm 10+
-- Docker + Docker Compose
+```bash
+pwd
+```
 
-Verificação rápida:
+Resultado esperado: caminho terminando com `.../wp`.
+
+---
+
+## Passo 1 — Instalar pré-requisitos
+
+Você precisa ter:
+
+1. **Node.js 20+**
+2. **npm 10+**
+3. **Docker**
+4. **Docker Compose**
+
+### 1.1 Validar versões instaladas
 
 ```bash
 node -v
@@ -30,11 +43,15 @@ docker -v
 docker compose version
 ```
 
+Se algum comando falhar, instale a dependência faltante e repita a validação.
+
 ---
 
-## 2) Subir banco e Redis localmente
+## Passo 2 — Criar infraestrutura local (PostgreSQL + Redis)
 
-Crie um arquivo `docker-compose.yml` na raiz com o conteúdo abaixo:
+## 2.1 Criar arquivo `docker-compose.yml` na raiz
+
+Crie o arquivo com este conteúdo:
 
 ```yaml
 services:
@@ -62,62 +79,113 @@ volumes:
   pg_data:
 ```
 
-Inicie os serviços:
+## 2.2 Subir containers
 
 ```bash
 docker compose up -d
 ```
 
+## 2.3 Conferir se os serviços estão de pé
+
+```bash
+docker compose ps
+```
+
+Resultado esperado: serviços `wp_saas_postgres` e `wp_saas_redis` com status `running`/`Up`.
+
 ---
 
-## 3) Configurar variáveis de ambiente
+## Passo 3 — Criar variáveis de ambiente
 
-Crie um arquivo `.env` na raiz com:
+## 3.1 Arquivo `.env` na raiz do repositório
 
 ```env
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/wp_saas?schema=public"
 REDIS_URL="redis://localhost:6379"
 ```
 
----
-
-## 4) Aplicar o schema Prisma
-
-O schema está em `backend/prisma/schema.prisma`.
-
-Se você ainda não tiver um backend Node configurado, execute:
+## 3.2 Validar conexão com PostgreSQL (opcional, recomendado)
 
 ```bash
-mkdir -p backend
+docker exec -it wp_saas_postgres psql -U postgres -d wp_saas -c '\dt'
+```
+
+Se o banco estiver vazio, o comando pode retornar "Did not find any relations" (normal antes da migration).
+
+---
+
+## Passo 4 — Preparar ambiente Prisma
+
+O schema principal está em:
+
+- `backend/prisma/schema.prisma`
+
+## 4.1 Entrar na pasta backend
+
+```bash
 cd backend
+```
+
+## 4.2 Inicializar projeto Node (caso ainda não exista `package.json`)
+
+```bash
 npm init -y
+```
+
+## 4.3 Instalar dependências Prisma
+
+```bash
 npm install prisma @prisma/client
+```
+
+## 4.4 Inicializar Prisma (se necessário)
+
+```bash
 npx prisma init --datasource-provider postgresql
 ```
 
-Depois disso:
+> Se esse comando gerar outro `prisma/schema.prisma`, mantenha o schema deste repositório em `backend/prisma/schema.prisma`.
 
-1. Substitua `backend/prisma/schema.prisma` pelo schema deste repositório (caso necessário).
-2. Ajuste o `.env` do backend com o mesmo `DATABASE_URL`.
+## 4.5 Criar/ajustar `.env` dentro de `backend/`
 
-Agora aplique migrations:
+Crie `backend/.env` com:
 
-```bash
-npx prisma migrate dev --name init
-npx prisma generate
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/wp_saas?schema=public"
 ```
 
 ---
 
-## 5) Testar se está rodando
+## Passo 5 — Aplicar migrations no banco
 
-Validar tabelas criadas:
+Ainda em `backend/`, execute:
+
+```bash
+npx prisma migrate dev --name init
+```
+
+Depois gere o client Prisma:
+
+```bash
+npx prisma generate
+```
+
+Resultado esperado:
+
+- migration criada/aplicada com sucesso
+- Prisma Client gerado sem erro
+
+---
+
+## Passo 6 — Validar se o sistema base está funcionando
+
+## 6.1 Abrir Prisma Studio
 
 ```bash
 npx prisma studio
 ```
 
-O Prisma Studio deve abrir no navegador mostrando as entidades:
+Isso deve abrir uma interface web com os modelos:
 
 - `User`
 - `Site`
@@ -126,34 +194,70 @@ O Prisma Studio deve abrir no navegador mostrando as entidades:
 - `Page`
 - `Job`
 
----
+## 6.2 Testar listagem de tabelas no PostgreSQL
 
-## 6) Próximo passo para rodar o sistema completo
+Em outro terminal:
 
-Para ter o SaaS funcional com interface moderna, a sequência recomendada é:
+```bash
+docker exec -it wp_saas_postgres psql -U postgres -d wp_saas -c '\dt'
+```
 
-1. Criar API em NestJS (módulos `auth`, `sites`, `categories`, `pages`, `content-library`, `plugins`, `themes`, `jobs`).
-2. Criar dashboard em Next.js + Tailwind + shadcn/ui.
-3. Integrar WordPress REST API para categorias/páginas.
-4. Integrar fila BullMQ para instalações e publicações em lote.
-
-A especificação completa está em:
-
-- `docs/saas-wordpress-architecture.md`
-- `backend/prisma/schema.prisma`
+Resultado esperado: tabelas relacionadas ao schema Prisma.
 
 ---
 
-## 7) Comandos úteis
+## Passo 7 — Encerrar ambiente local
 
-Parar containers:
+Parar serviços:
 
 ```bash
 docker compose down
 ```
 
-Parar e remover volumes (reset total do banco):
+Parar e remover volumes (reset completo do banco):
 
 ```bash
 docker compose down -v
 ```
+
+---
+
+## Erros comuns e solução
+
+## Erro: porta 5432 ocupada
+
+- Ajuste a porta no `docker-compose.yml` (ex.: `5433:5432`)
+- Atualize também o `DATABASE_URL`
+
+Exemplo:
+
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5433/wp_saas?schema=public"
+```
+
+## Erro: `P1001 Can't reach database server`
+
+- Verifique se o container do Postgres está ativo com `docker compose ps`
+- Verifique host/porta/usuário/senha no `DATABASE_URL`
+
+## Erro: `prisma` não encontrado
+
+- Rode novamente `npm install prisma @prisma/client`
+- Use `npx prisma ...` em vez de `prisma ...`
+
+---
+
+## Próximos passos (para rodar o SaaS completo)
+
+Após validar banco + Prisma, evolua nesta ordem:
+
+1. API em NestJS (`auth`, `sites`, `categories`, `pages`, `content-library`, `plugins`, `themes`, `jobs`)
+2. Dashboard Next.js + Tailwind + shadcn/ui
+3. Integração WordPress REST API
+4. Fila BullMQ para jobs assíncronos
+5. Logs/auditoria e controle de permissões
+
+Referências deste repositório:
+
+- `docs/saas-wordpress-architecture.md`
+- `backend/prisma/schema.prisma`

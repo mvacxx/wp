@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WP SaaS Manager</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>WP SaaS Manager</h1>
+      <p>Conecte seu WordPress e automatize criação de conteúdo, plugins e temas.</p>
+    </header>
+
+    <section class="card">
+      <h2>Conexão WordPress</h2>
+      <div class="grid">
+        <label>URL do site<input id="baseUrl" placeholder="https://seusite.com" /></label>
+        <label>Usuário administrador<input id="username" placeholder="admin" /></label>
+        <label>Application Password<input id="appPassword" type="password" placeholder="xxxx xxxx xxxx" /></label>
+      </div>
+    </section>
+
+    <section class="card two-col">
+      <div>
+        <h2>Criar categoria</h2>
+        <label>Nome<input id="categoryName" /></label>
+        <label>Descrição<textarea id="categoryDescription"></textarea></label>
+        <button data-action="create-category">Criar categoria</button>
+      </div>
+
+      <div>
+        <h2>Criar página</h2>
+        <label>Título<input id="pageTitle" /></label>
+        <label>Conteúdo (HTML / editor WP)<textarea id="pageContent" rows="8"></textarea></label>
+        <button data-action="create-page">Criar página</button>
+      </div>
+    </section>
+
+    <section class="card two-col">
+      <div>
+        <h2>Salvar conteúdo reutilizável</h2>
+        <label>Nome do template<input id="templateName" /></label>
+        <label>Conteúdo<textarea id="templateContent" rows="8"></textarea></label>
+        <button data-action="save-template">Salvar template</button>
+      </div>
+
+      <div>
+        <h2>Criar página com template</h2>
+        <label>Título da nova página<input id="templatePageTitle" /></label>
+        <label>Template salvo
+          <select id="templateId"></select>
+        </label>
+        <button data-action="create-page-from-template">Criar usando template</button>
+      </div>
+    </section>
+
+    <section class="card two-col">
+      <div>
+        <h2>Instalar plugin (biblioteca WP)</h2>
+        <label>Slug do plugin<input id="pluginSlug" placeholder="contact-form-7" /></label>
+        <button data-action="install-plugin">Instalar plugin</button>
+      </div>
+      <div>
+        <h2>Instalar tema (biblioteca WP)</h2>
+        <label>Slug do tema<input id="themeSlug" placeholder="astra" /></label>
+        <button data-action="install-theme">Instalar tema</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Log de execução</h2>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
